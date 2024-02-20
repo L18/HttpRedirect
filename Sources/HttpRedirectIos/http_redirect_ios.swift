@@ -334,8 +334,29 @@ fileprivate struct FfiConverterString: FfiConverter {
         writeBytes(&buf, value.utf8)
     }
 }
-public func extract(url: String)  -> String {
-    return try!  FfiConverterString.lift(
+
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+public func extract(url: String)  -> String? {
+    return try!  FfiConverterOptionString.lift(
         try! rustCall() {
     uniffi_http_redirect_ios_fn_func_extract(
         FfiConverterString.lower(url),$0)
@@ -358,7 +379,7 @@ private var initializationResult: InitializationResult {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_http_redirect_ios_checksum_func_extract() != 5917) {
+    if (uniffi_http_redirect_ios_checksum_func_extract() != 4340) {
         return InitializationResult.apiChecksumMismatch
     }
 
